@@ -79,6 +79,16 @@ module Fluent
       def configure(conf)
         super
 
+        @dimensions.each do |d|
+          unless d.key.nil? ^ d.value.nil?
+            raise Fluent::ConfigError, "'Either dimensions[key]' or 'dimensions[value]' must be set"
+          end
+
+          if @use_statistic_sets && d.key
+            raise Fluent::ConfigError, "If 'use_statistic_sets' is true, dimensions[key] is not supportted"
+          end
+        end
+
         placeholder_params = "namespace=#{@namespace}/metric_name=#{@metric_name}/unit=#{@unit}/dimensions[name]=#{@dimensions.map(&:name).join(",")}/dimensions[value]=#{@dimensions.map(&:value).join(",")}"
         placeholder_validate!(:cloudwatch_put, placeholder_params)
       end
