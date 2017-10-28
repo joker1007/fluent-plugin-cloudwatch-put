@@ -4,7 +4,7 @@ require "aws-sdk"
 module Fluent
   module Plugin
     class CloudWatchPutOutput < Fluent::Plugin::Output
-      Fluent::Plugin.register_output("cloudwatch", self)
+      Fluent::Plugin.register_output("cloudwatch_put", self)
 
       helpers :inject
 
@@ -76,6 +76,13 @@ module Fluent
 
       attr_reader :cloudwatch
 
+      def configure(conf)
+        super
+
+        placeholder_params = "namespace=#{@namespace}/metric_name=#{@metric_name}/unit=#{@unit}/dimensions[name]=#{@dimensions.map(&:name).join(",")}/dimensions[value]=#{@dimensions.map(&:value).join(",")}"
+        placeholder_validate!(:cloudwatch_put, placeholder_params)
+      end
+
       def start
         super
 
@@ -98,29 +105,30 @@ module Fluent
         end
 
         @cloudwatch.put_metric_data({
-          namespace: @namespace,
+          namespace: extract_placeholders(@namespace, chunk.metadata),
           metric_data: metric_data,
         })
       end
 
       private
 
-      def base_metric_data
+      def base_metric_data(meta)
         {
-          metric_name: @metric_name,
-          unit: @unit,
+          metric_name: extract_placeholders(@metric_name, meta),
+          unit: extract_placeholders(@unit, meta),
           storage_resolution: @storage_resolution,
         }
       end
 
       def build_metric_data(chunk)
+        meta = chunk.metadata
         metric_data = []
         chunk.msgpack_each do |(timestamp, record)|
-          metric_data << base_metric_data.merge({
+          metric_data << base_metric_data(meta).merge({
             dimensions: @dimensions.map { |d|
               {
-                name: d.name,
-                value: record[d.key],
+                name: extract_placeholders(d.name, meta),
+                value: d.key ? record[d.key] : extract(d.value, meta),
               }
             },
             value: record[@value_key].to_f,
@@ -131,6 +139,7 @@ module Fluent
       end
 
       def build_statistic_metric_data(chunk)
+        meta = chunk.metadata
         values = []
         timestamps = []
         chunk.msgpack_each do |(timestamp, record)|
@@ -139,11 +148,11 @@ module Fluent
         end
 
         [
-          base_metric_data.merge({
+          base_metric_data(meta).merge({
             dimensions: @dimensions.map { |d|
               {
-                name: d.name,
-                value: d.value,
+                name: extract_placeholders(d.name, meta),
+                value: extract_placeholders(d.value, meta),
               }
             },
             statistic_values: {
