@@ -1,5 +1,10 @@
 require "fluent/plugin/output"
-require "aws-sdk"
+
+begin
+  require "aws-sdk-cloudwatch"
+rescue LoadError
+  require "aws-sdk"
+end
 
 module Fluent
   module Plugin
