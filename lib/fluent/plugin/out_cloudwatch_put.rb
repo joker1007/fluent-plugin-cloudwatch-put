@@ -53,21 +53,30 @@ module Fluent
       desc "URI of proxy environment"
       config_param :proxy_uri, :string, default: nil
 
-      desc "CloudWatch metric namespace"
+      desc "CloudWatch metric namespace (support placeholder)"
       config_param :namespace, :string
-      desc "CloudWatch metric name"
+      desc "CloudWatch metric name (support placeholder)"
       config_param :metric_name, :string
-      desc "CloudWatch metric unit"
+      desc "CloudWatch metric unit (support placeholder)"
       config_param :unit, :string
 
+      desc "Definition of dimension"
       config_section :dimensions, multi: true do
+        desc "Dimension name (support placeholder)"
         config_param :name, :string
+        desc "Use this key as dimension value. If use_statistic_sets is true, this param is not supported. Use `value`"
         config_param :key, :string, default: nil
+        desc "Use static value as dimension value (support placeholder)"
         config_param :value, :string, default: nil
       end
 
+      desc "Use this key as metric value"
       config_param :value_key, :string
+
+      desc "Cloudwatch storage resolution"
       config_param :storage_resolution, :integer, default: 60
+
+      desc "If this is true, aggregates record chunk before put metric"
       config_param :use_statistic_sets, :bool, default: false
 
       config_section :buffer do
