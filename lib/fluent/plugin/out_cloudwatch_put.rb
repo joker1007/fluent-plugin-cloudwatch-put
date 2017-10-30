@@ -114,8 +114,13 @@ module Fluent
           metric_data = build_metric_data(chunk)
         end
 
+        namespace = extract_placeholders(@namespace, chunk.metadata)
+        log.debug "Put metric to #{namespace}, count=#{metric_data.size}"
+        log.on_trace do
+          log.trace metric_data.to_json
+        end
         @cloudwatch.put_metric_data({
-          namespace: extract_placeholders(@namespace, chunk.metadata),
+          namespace: namespace,
           metric_data: metric_data,
         })
       end
