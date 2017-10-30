@@ -1,8 +1,9 @@
 # fluent-plugin-cloudwatch-put
+[![Build Status](https://travis-ci.org/joker1007/fluent-plugin-cloudwatch-put.svg?branch=master)](https://travis-ci.org/joker1007/fluent-plugin-cloudwatch-put)
 
-[Fluentd](http://fluentd.org/) output plugin to do something.
+[Fluentd](http://fluentd.org/) output plugin to put metric data to AWS CloudWatch.
 
-TODO: write description for you plugin.
+This plugin for fluentd-0.14.x or later.
 
 ## Installation
 
