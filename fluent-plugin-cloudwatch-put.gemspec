@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
 
   spec.summary       = %q{Cloudwatch put metric plugin for fluentd.}
   spec.description   = %q{Cloudwatch put metric plugin for fluentd.}
-  spec.homepage      = ""
+  spec.homepage      = "https://github.com/joker1007/fluent-plugin-cloudwatch-put"
   spec.license       = "MIT"
 
   test_files, files  = `git ls-files -z`.split("\x0").partition do |f|
