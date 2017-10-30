@@ -144,7 +144,7 @@ module Fluent
             dimensions: @dimensions.map { |d|
               {
                 name: extract_placeholders(d.name, meta),
-                value: d.key ? record[d.key] : extract(d.value, meta),
+                value: d.key ? record[d.key] : extract_placeholders(d.value, meta),
               }
             },
             value: record[@value_key].to_f,
