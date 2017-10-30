@@ -1,5 +1,5 @@
 require "helper"
-require "fluent/plugin/out_cloudwatch-put.rb"
+require "fluent/plugin/out_cloudwatch_put.rb"
 
 class CloudWatchPutOutputTest < Test::Unit::TestCase
   setup do
