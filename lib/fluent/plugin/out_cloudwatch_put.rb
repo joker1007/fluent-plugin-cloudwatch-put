@@ -72,6 +72,7 @@ module Fluent
 
       config_section :buffer do
         config_set_default :chunk_limit_size, 30 * 1024
+        config_set_default :chunk_limit_records, 20 # max record size of metric_data payload
       end
 
       attr_reader :cloudwatch
