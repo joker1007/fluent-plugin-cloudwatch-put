@@ -90,7 +90,7 @@ Default value: `60`.
 If this is true, aggregates record chunk before put metric
 
 
-### \<dimensions\> section (optional) (multiple)
+### \<dimensions\> section (required) (multiple)
 
 #### name (string) (required)
 

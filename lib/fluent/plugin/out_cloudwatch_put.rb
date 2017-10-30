@@ -61,7 +61,7 @@ module Fluent
       config_param :unit, :string
 
       desc "Definition of dimension"
-      config_section :dimensions, multi: true do
+      config_section :dimensions, multi: true, required: true do
         desc "Dimension name (support placeholder)"
         config_param :name, :string
         desc "Use this key as dimension value. If use_statistic_sets is true, this param is not supported. Use `value`"
