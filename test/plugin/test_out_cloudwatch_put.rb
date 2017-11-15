@@ -106,6 +106,95 @@ class CloudWatchPutOutputTest < Test::Unit::TestCase
     end
   end
 
+  test "write (multi value_key)" do
+    conf = %q{
+      region ap-northeast-1
+      namespace Test
+      key_as_metric_name true
+      unit Count
+
+      <dimensions>
+        name dim1
+        value dim_value1
+      </dimensions>
+
+      <dimensions>
+        name dim2
+        value dim_value2
+      </dimensions>
+
+      value_key key1, key2, key3
+
+      aws_key_id dummy
+      aws_sec_key dummy
+    }
+    d = create_driver(conf)
+    now = Time.now.to_i
+
+    d.instance.start
+
+    mock(d.instance.cloudwatch).put_metric_data({
+      namespace: "Test",
+      metric_data: [
+        {
+          metric_name: "key1",
+          dimensions: [
+            {
+              name: "dim1",
+              value: "dim_value1",
+            },
+            {
+              name: "dim2",
+              value: "dim_value2",
+            },
+          ],
+          timestamp: Time.at(now),
+          value: 1.0,
+          unit: "Count",
+          storage_resolution: 60,
+        },
+        {
+          metric_name: "key2",
+          dimensions: [
+            {
+              name: "dim1",
+              value: "dim_value1",
+            },
+            {
+              name: "dim2",
+              value: "dim_value2",
+            },
+          ],
+          timestamp: Time.at(now),
+          value: 2.0,
+          unit: "Count",
+          storage_resolution: 60,
+        },
+        {
+          metric_name: "key3",
+          dimensions: [
+            {
+              name: "dim1",
+              value: "dim_value1",
+            },
+            {
+              name: "dim2",
+              value: "dim_value2",
+            },
+          ],
+          timestamp: Time.at(now),
+          value: 3.0,
+          unit: "Count",
+          storage_resolution: 60,
+        },
+      ]
+    })
+
+    d.run do
+      d.feed('tag', now, {"key1" => 1, "key2" => 2, "key3" => 3})
+    end
+  end
+
   test "write (use_statistic_sets)" do
     conf = %q{
       region ap-northeast-1

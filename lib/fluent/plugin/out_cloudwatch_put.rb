@@ -61,7 +61,9 @@ module Fluent
       desc "CloudWatch metric namespace (support placeholder)"
       config_param :namespace, :string
       desc "CloudWatch metric name (support placeholder)"
-      config_param :metric_name, :string
+      config_param :metric_name, :string, default: nil
+      desc "Use keyname as metric name"
+      config_param :key_as_metric_name, :bool, default: false
       desc "CloudWatch metric unit (support placeholder)"
       config_param :unit, :string
 
@@ -76,7 +78,7 @@ module Fluent
       end
 
       desc "Use this key as metric value"
-      config_param :value_key, :string
+      config_param :value_key, :array, value_type: :string
 
       desc "Cloudwatch storage resolution"
       config_param :storage_resolution, :integer, default: 60
@@ -94,6 +96,10 @@ module Fluent
       def configure(conf)
         super
 
+        unless !!@metric_name ^ @key_as_metric_name
+          raise Fluent::ConfigError, "'Either 'metric_name'' or 'key_as_metric_name' must be set"
+        end
+
         @dimensions.each do |d|
           unless d.key.nil? ^ d.value.nil?
             raise Fluent::ConfigError, "'Either dimensions[key]' or 'dimensions[value]' must be set"
@@ -102,6 +108,15 @@ module Fluent
           if @use_statistic_sets && d.key
             raise Fluent::ConfigError, "If 'use_statistic_sets' is true, dimensions[key] is not supportted"
           end
+
+          if @use_statistic_sets && @key_as_metric_name
+            raise Fluent::ConfigError, "If 'use_statistic_sets' is true, 'key_as_metric_name' is not supportted"
+          end
+        end
+
+        @send_all_key = false
+        if @value_key.size == 1 && @value_key[0] == "*"
+          @send_all_key = true
         end
 
         placeholder_params = "namespace=#{@namespace}/metric_name=#{@metric_name}/unit=#{@unit}/dimensions[name]=#{@dimensions.map(&:name).join(",")}/dimensions[value]=#{@dimensions.map(&:value).join(",")}"
@@ -144,7 +159,6 @@ module Fluent
 
       def base_metric_data(meta)
         {
-          metric_name: extract_placeholders(@metric_name, meta),
           unit: extract_placeholders(@unit, meta),
           storage_resolution: @storage_resolution,
         }
@@ -154,16 +168,23 @@ module Fluent
         meta = chunk.metadata
         metric_data = []
         chunk.msgpack_each do |(timestamp, record)|
-          metric_data << base_metric_data(meta).merge({
-            dimensions: @dimensions.map { |d|
-              {
-                name: extract_placeholders(d.name, meta),
-                value: d.key ? record[d.key] : extract_placeholders(d.value, meta),
-              }
-            },
-            value: record[@value_key].to_f,
-            timestamp: Time.at(timestamp)
-          })
+          record.each do |k, v|
+            next unless @value_key.include?(k) || @send_all_key
+
+            metric_data << {
+              metric_name: @key_as_metric_name ? k : extract_placeholders(@metric_name, meta),
+              unit: extract_placeholders(@unit, meta),
+              storage_resolution: @storage_resolution,
+              dimensions: @dimensions.map { |d|
+                {
+                  name: extract_placeholders(d.name, meta),
+                  value: d.key ? record[d.key] : extract_placeholders(d.value, meta),
+                }
+              },
+              value: v.to_f,
+              timestamp: Time.at(timestamp)
+            }
+          end
         end
         metric_data
       end
@@ -173,12 +194,16 @@ module Fluent
         values = []
         timestamps = []
         chunk.msgpack_each do |(timestamp, record)|
-          values << record[@value_key].to_f
+          record.each do |k, v|
+            next unless @value_key.include?(k) || @send_all_key
+            values << v.to_f
+          end
           timestamps << timestamp
         end
 
         [
           base_metric_data(meta).merge({
+            metric_name: extract_placeholders(@metric_name, meta),
             dimensions: @dimensions.map { |d|
               {
                 name: extract_placeholders(d.name, meta),
