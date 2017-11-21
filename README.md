@@ -72,11 +72,17 @@ CloudWatch metric namespace (support placeholder)
 
 CloudWatch metric name (support placeholder)
 
+### key_as_metric_name (bool) (optional)
+
+Use record key as metric name
+
+Default value: `false`
+
 ### unit (string) (required)
 
 CloudWatch metric unit (support placeholder)
 
-### value_key (string) (required)
+### value_key (array\<string\>) (required)
 
 Use this key as metric value
 
