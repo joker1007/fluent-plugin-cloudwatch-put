@@ -123,6 +123,10 @@ module Fluent
         placeholder_validate!(:cloudwatch_put, placeholder_params)
       end
 
+      def multi_workers_ready?
+        true
+      end
+
       def start
         super
 
