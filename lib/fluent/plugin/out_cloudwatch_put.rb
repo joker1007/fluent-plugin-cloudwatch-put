@@ -179,7 +179,7 @@ module Fluent
                   name: extract_placeholders(d.name, meta),
                   value: d.key ? record[d.key] : extract_placeholders(d.value, meta),
                 }
-              },
+              }.select { |d| !d[:name].empty? },
               value: v.to_f,
               timestamp: Time.at(timestamp)
             }
@@ -208,7 +208,7 @@ module Fluent
                 name: extract_placeholders(d.name, meta),
                 value: extract_placeholders(d.value, meta),
               }
-            },
+            }.select { |d| !d[:name].empty? },
             statistic_values: {
               sample_count: values.size,
               sum: values.inject(&:+),
