@@ -63,7 +63,7 @@ module Fluent
       config_param :unit, :string
 
       desc "Definition of dimension"
-      config_section :dimensions, multi: true, required: true do
+      config_section :dimensions, multi: true, required: false do
         desc "Dimension name (support placeholder)"
         config_param :name, :string
         desc "Use this key as dimension value. If use_statistic_sets is true, this param is not supported. Use `value`"
@@ -95,26 +95,12 @@ module Fluent
           raise Fluent::ConfigError, "'Either 'metric_name'' or 'key_as_metric_name' must be set"
         end
 
-        @dimensions.each do |d|
-          unless d.key.nil? ^ d.value.nil?
-            raise Fluent::ConfigError, "'Either dimensions[key]' or 'dimensions[value]' must be set"
-          end
-
-          if @use_statistic_sets && d.key
-            raise Fluent::ConfigError, "If 'use_statistic_sets' is true, dimensions[key] is not supportted"
-          end
-
-          if @use_statistic_sets && @key_as_metric_name
-            raise Fluent::ConfigError, "If 'use_statistic_sets' is true, 'key_as_metric_name' is not supportted"
-          end
-        end
-
         @send_all_key = false
         if @value_key.size == 1 && @value_key[0] == "*"
           @send_all_key = true
         end
 
-        placeholder_params = "namespace=#{@namespace}/metric_name=#{@metric_name}/unit=#{@unit}/dimensions[name]=#{@dimensions.map(&:name).join(",")}/dimensions[value]=#{@dimensions.map(&:value).join(",")}"
+        placeholder_params = "namespace=#{@namespace}/metric_name=#{@metric_name}/unit=#{@unit}"
         placeholder_validate!(:cloudwatch_put, placeholder_params)
       end
 
@@ -174,10 +160,10 @@ module Fluent
               metric_name: @key_as_metric_name ? k : extract_placeholders(@metric_name, meta),
               unit: extract_placeholders(@unit, meta),
               storage_resolution: @storage_resolution,
-              dimensions: @dimensions.map { |d|
+              dimensions: record['dimensions'].map { |d|
                 {
-                  name: extract_placeholders(d.name, meta),
-                  value: d.key ? record[d.key] : extract_placeholders(d.value, meta),
+                  name: d['name'],
+                  value: d['value']
                 }
               }.select { |d| !d[:name].empty? },
               value: v.to_f,
