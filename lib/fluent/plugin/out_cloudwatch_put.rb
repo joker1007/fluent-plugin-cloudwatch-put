@@ -155,6 +155,7 @@ module Fluent
         chunk.msgpack_each do |(timestamp, record)|
           record.each do |k, v|
             next unless @value_key.include?(k) || @send_all_key
+            timestamp_aws = record['timestamp'] || timestamp
 
             metric_data << {
               metric_name: @key_as_metric_name ? k : extract_placeholders(@metric_name, meta),
@@ -167,7 +168,7 @@ module Fluent
                 }
               end,
               value: v.to_f,
-              timestamp: Time.at(timestamp)
+              timestamp: Time.at(timestamp_aws)
             }
           end
         end
