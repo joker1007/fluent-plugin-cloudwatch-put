@@ -156,9 +156,15 @@ module Fluent
           record.each do |k, v|
             next unless @value_key.include?(k) || @send_all_key
             timestamp_aws = record['timestamp'] || timestamp
+            metric_name = @key_as_metric_name ? k : extract_placeholders(@metric_name, meta)
+
+            unless timestamp_use.is_a? Fixnum
+              log.error "Invalid timestamp for metric_name #{metric_name} timestamp #{timestamp_aws} needs to be a number"
+              timestamp_aws = timestamp
+            end
 
             metric_data << {
-              metric_name: @key_as_metric_name ? k : extract_placeholders(@metric_name, meta),
+              metric_name: metric_name,
               unit: extract_placeholders(@unit, meta),
               storage_resolution: @storage_resolution,
               dimensions: record['dimensions'].map do |dk, dv|
