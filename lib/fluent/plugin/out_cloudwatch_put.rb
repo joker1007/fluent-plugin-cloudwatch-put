@@ -158,7 +158,7 @@ module Fluent
             timestamp_aws = record['timestamp'] || timestamp
             metric_name = @key_as_metric_name ? k : extract_placeholders(@metric_name, meta)
 
-            unless timestamp_aws.is_a? Fixnum
+            unless timestamp_aws.is_a? Integer
               log.error "Invalid timestamp for metric_name #{metric_name} timestamp #{timestamp_aws} needs to be a number"
               timestamp_aws = timestamp
             end
