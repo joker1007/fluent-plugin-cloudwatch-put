@@ -63,11 +63,11 @@ module Fluent
       config_param :unit, :string
 
       desc "Definition of dimension"
-      config_section :dimensions, multi: true, required: true do
+      config_section :dimensions, multi: true, required: false do
         desc "Dimension name (support placeholder)"
         config_param :name, :string
-        desc "Use this key as dimension value. If use_statistic_sets is true, this param is not supported. Use `value`"
-        config_param :key, :string, default: nil
+        #desc "Use this key as dimension value. If use_statistic_sets is true, this param is not supported. Use `value`"
+        #config_param :key, :string, default: nil
         desc "Use static value as dimension value (support placeholder)"
         config_param :value, :string, default: nil
       end
@@ -78,8 +78,8 @@ module Fluent
       desc "Cloudwatch storage resolution"
       config_param :storage_resolution, :integer, default: 60
 
-      desc "If this is true, aggregates record chunk before put metric"
-      config_param :use_statistic_sets, :bool, default: false
+      #desc "If this is true, aggregates record chunk before put metric"
+      #config_param :use_statistic_sets, :bool, default: false
 
       config_section :buffer do
         config_set_default :chunk_limit_size, 30 * 1024
@@ -95,26 +95,12 @@ module Fluent
           raise Fluent::ConfigError, "'Either 'metric_name'' or 'key_as_metric_name' must be set"
         end
 
-        @dimensions.each do |d|
-          unless d.key.nil? ^ d.value.nil?
-            raise Fluent::ConfigError, "'Either dimensions[key]' or 'dimensions[value]' must be set"
-          end
-
-          if @use_statistic_sets && d.key
-            raise Fluent::ConfigError, "If 'use_statistic_sets' is true, dimensions[key] is not supportted"
-          end
-
-          if @use_statistic_sets && @key_as_metric_name
-            raise Fluent::ConfigError, "If 'use_statistic_sets' is true, 'key_as_metric_name' is not supportted"
-          end
-        end
-
         @send_all_key = false
         if @value_key.size == 1 && @value_key[0] == "*"
           @send_all_key = true
         end
 
-        placeholder_params = "namespace=#{@namespace}/metric_name=#{@metric_name}/unit=#{@unit}/dimensions[name]=#{@dimensions.map(&:name).join(",")}/dimensions[value]=#{@dimensions.map(&:value).join(",")}"
+        placeholder_params = "namespace=#{@namespace}/metric_name=#{@metric_name}/unit=#{@unit}"
         placeholder_validate!(:cloudwatch_put, placeholder_params)
       end
 
@@ -137,11 +123,11 @@ module Fluent
       end
 
       def write(chunk)
-        if @use_statistic_sets
-          metric_data = build_statistic_metric_data(chunk)
-        else
-          metric_data = build_metric_data(chunk)
-        end
+#        if @use_statistic_sets
+#          metric_data = build_statistic_metric_data(chunk)
+#        else
+         metric_data = build_metric_data(chunk)
+#        end
 
         namespace = extract_placeholders(@namespace, chunk.metadata)
         log.debug "Put metric to #{namespace}, count=#{metric_data.size}"
@@ -169,56 +155,63 @@ module Fluent
         chunk.msgpack_each do |(timestamp, record)|
           record.each do |k, v|
             next unless @value_key.include?(k) || @send_all_key
+            timestamp_aws = record['timestamp'] || timestamp
+            metric_name = @key_as_metric_name ? k : extract_placeholders(@metric_name, meta)
+
+            unless timestamp_aws.is_a? Integer
+              log.error "Invalid timestamp for metric_name #{metric_name} timestamp #{timestamp_aws} needs to be a number"
+              timestamp_aws = timestamp
+            end
 
             metric_data << {
-              metric_name: @key_as_metric_name ? k : extract_placeholders(@metric_name, meta),
+              metric_name: metric_name,
               unit: extract_placeholders(@unit, meta),
               storage_resolution: @storage_resolution,
-              dimensions: @dimensions.map { |d|
+              dimensions: record['dimensions'].map do |dk, dv|
                 {
-                  name: extract_placeholders(d.name, meta),
-                  value: d.key ? record[d.key] : extract_placeholders(d.value, meta),
+                  name: dk,
+                  value: dv
                 }
-              },
+              end,
               value: v.to_f,
-              timestamp: Time.at(timestamp)
+              timestamp: Time.at(timestamp_aws)
             }
           end
         end
         metric_data
       end
 
-      def build_statistic_metric_data(chunk)
-        meta = chunk.metadata
-        values = []
-        timestamps = []
-        chunk.msgpack_each do |(timestamp, record)|
-          record.each do |k, v|
-            next unless @value_key.include?(k) || @send_all_key
-            values << v.to_f
-          end
-          timestamps << timestamp
-        end
+  #    def build_statistic_metric_data(chunk)
+  #      meta = chunk.metadata
+  #      values = []
+  #      timestamps = []
+  #      chunk.msgpack_each do |(timestamp, record)|
+  #        record.each do |k, v|
+  #          next unless @value_key.include?(k) || @send_all_key
+  #          values << v.to_f
+  #        end
+  #        timestamps << timestamp
+  #      end
 
-        [
-          base_metric_data(meta).merge({
-            metric_name: extract_placeholders(@metric_name, meta),
-            dimensions: @dimensions.map { |d|
-              {
-                name: extract_placeholders(d.name, meta),
-                value: extract_placeholders(d.value, meta),
-              }
-            },
-            statistic_values: {
-              sample_count: values.size,
-              sum: values.inject(&:+),
-              minimum: values.min,
-              maximum: values.max,
-            },
-            timestamp: Time.at(timestamps.max)
-          })
-        ]
-      end
+  #      [
+  #        base_metric_data(meta).merge({
+  #          metric_name: extract_placeholders(@metric_name, meta),
+  #          dimensions: @dimensions.map { |d|
+  #            {
+  #              name: extract_placeholders(d.name, meta),
+  #              value: extract_placeholders(d.value, meta),
+  #            }
+  #          }.select { |d| !d[:name].empty? },
+  #          statistic_values: {
+  #            sample_count: values.size,
+  #            sum: values.inject(&:+),
+  #            minimum: values.min,
+  #            maximum: values.max,
+  #          },
+  #          timestamp: Time.at(timestamps.max)
+  #        })
+  #      ]
+  #    end
 
       # Credential Configs from fluent-plugin-s3
       # Apache License,  version 2.0
